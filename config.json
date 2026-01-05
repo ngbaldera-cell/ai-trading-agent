@@ -1,8 +1,7 @@
 {
   "assets": [
     "BTC",
-    "ETH",
-    "SOL"
+    "ETH"
   ],
   "interval": "5m",
   "leverage": 100,

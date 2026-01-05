@@ -70,17 +70,23 @@ def _get_list(name: str, default: list[str] | None = None) -> list[str] | None:
 
 CONFIG = {
     "taapi_api_key": _get_env("TAAPI_API_KEY", required=True),
+    # Exchange selection: "hyperliquid" or "binance"
+    "exchange": _get_env("EXCHANGE", "hyperliquid").lower(),
+    # Hyperliquid configuration
     "hyperliquid_private_key": _get_env("HYPERLIQUID_PRIVATE_KEY") or _get_env("LIGHTER_PRIVATE_KEY"),
     "mnemonic": _get_env("MNEMONIC"),
-    # Hyperliquid network/base URL overrides
     "hyperliquid_base_url": _get_env("HYPERLIQUID_BASE_URL"),
     "hyperliquid_network": _get_env("HYPERLIQUID_NETWORK", "mainnet"),
+    # Binance configuration
+    "binance_api_key": _get_env("BINANCE_API_KEY"),
+    "binance_api_secret": _get_env("BINANCE_API_SECRET"),
+    "binance_testnet": _get_bool("BINANCE_TESTNET", True),  # Default to testnet for safety
     # LLM via OpenRouter
     "openrouter_api_key": _get_env("OPENROUTER_API_KEY", required=True),
     "openrouter_base_url": _get_env("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
     "openrouter_referer": _get_env("OPENROUTER_REFERER"),
     "openrouter_app_title": _get_env("OPENROUTER_APP_TITLE", "trading-agent"),
-    "llm_model": _get_env("LLM_MODEL", "x-ai/grok-4"),
+    "llm_model": (_get_env("LLM_MODEL", "x-ai/grok-4") or "x-ai/grok-4").strip().strip('"\''),  # Strip quotes
     # Reasoning tokens
     "reasoning_enabled": _get_bool("REASONING_ENABLED", False),
     "reasoning_effort": _get_env("REASONING_EFFORT", "high"),

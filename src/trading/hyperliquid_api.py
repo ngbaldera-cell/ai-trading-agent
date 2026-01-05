@@ -48,7 +48,8 @@ class HyperliquidAPI:
         """
         self._meta_cache = None
         if "hyperliquid_private_key" in CONFIG and CONFIG["hyperliquid_private_key"]:
-            self.wallet = Account.from_key(CONFIG["hyperliquid_private_key"])
+            private_key = CONFIG["hyperliquid_private_key"].strip().strip('"\'')
+            self.wallet = Account.from_key(private_key)
         elif "mnemonic" in CONFIG and CONFIG["mnemonic"]:
             Account.enable_unaudited_hdwallet_features()
             self.wallet = Account.from_mnemonic(CONFIG["mnemonic"])

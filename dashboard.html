@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            border: 2px solid #00ff00;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #0a0a0a;
+        }
+
+        h1 {
+            font-size: 2em;
+            letter-spacing: 3px;
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.running {
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        .status-indicator.stopped {
+            background: #ff0000;
+            box-shadow: 0 0 10px #ff0000;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ff00;
+            border: 2px solid #00ff00;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #00ff00;
+            color: #0a0a0a;
+        }
+
+        button.danger {
+            border-color: #ff0000;
+            color: #ff0000;
+        }
+
+        button.danger:hover {
+            background: #ff0000;
+            color: #0a0a0a;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            border: 2px solid #00ff00;
+            background: #0a0a0a;
+            padding: 15px;
+        }
+
+        .panel-header {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #00ff00;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #003300;
+        }
+
+        th {
+            background: #003300;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background: #002200;
+        }
+
+        .positive {
+            color: #00ff00;
+        }
+
+        .negative {
+            color: #ff0000;
+        }
+
+        .neutral {
+            color: #ffff00;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #003300;
+        }
+
+        .metric-value {
+            font-weight: bold;
+        }
+
+        .countdown {
+            font-size: 2em;
+            text-align: center;
+            padding: 20px;
+            color: #ffff00;
+        }
+
+        .decision-log {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .decision-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #003300;
+            background: #0d0d0d;
+        }
+
+        .decision-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .action-buy {
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        .action-sell {
+            color: #ff0000;
+            font-weight: bold;
+        }
+
+        .action-hold {
+            color: #ffff00;
+            font-weight: bold;
+        }
+
+        .scrollbar::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .scrollbar::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        .scrollbar::-webkit-scrollbar-thumb {
+            background: #00ff00;
+        }
+
+        .position-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .position-actions button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .refresh-indicator {
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        /* Config Panel Styles */
+        .config-panel {
+            border: 2px solid #00ff00;
+            background: #0a0a0a;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .config-grid {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .config-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .config-section label {
+            font-weight: bold;
+            color: #00ff00;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .asset-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border: 1px solid #003300;
+            background: #0d0d0d;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .asset-checkbox:hover {
+            border-color: #00ff00;
+        }
+
+        .asset-checkbox.selected {
+            border-color: #00ff00;
+            background: #002200;
+        }
+
+        .asset-checkbox input {
+            accent-color: #00ff00;
+        }
+
+        select {
+            font-family: 'Courier New', monospace;
+            background: #0d0d0d;
+            color: #00ff00;
+            border: 2px solid #003300;
+            padding: 8px 15px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        select:hover,
+        select:focus {
+            border-color: #00ff00;
+            outline: none;
+        }
+
+        .config-actions {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .config-status {
+            font-size: 0.9em;
+            color: #666;
+            margin-left: 10px;
+        }
+
+        .config-status.success {
+            color: #00ff00;
+        }
+
+        .config-status.error {
+            color: #ff0000;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 TRADING BOT DASHBOARD</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-indicator stopped" id="statusIndicator"></span>
+                    <span>STATUS: <span id="botStatus">ESPERANDO INICIO</span></span>
+                </div>
+                <div class="status-item">
+                    <span>EXCHANGE: <span id="exchange">BINANCE TESTNET</span></span>
+                </div>
+                <div class="status-item">
+                    <span>BALANCE: <span id="balance">$5,000.00</span></span>
+                </div>
+                <div class="status-item">
+                    <span>ASSETS: <span id="assets">BTC, ETH</span></span>
+                </div>
+                <div class="status-item">
+                    <span>INTERVAL: <span id="interval">--</span></span>
+                </div>
+                <div class="status-item">
+                    <span>LEVERAGE: <span id="leverage">--x</span></span>
+                </div>
+                <div class="status-item">
+                    <span>NEXT: <span id="countdown">--:--</span></span>
+                </div>
+            </div>
+            <div class="controls">
+                <button onclick="applyGlobalChanges()" style="background: #00ccff; color: black; font-weight: bold;">💾
+                    APLICAR TODO</button>
+                <button onclick="toggleBot()" id="toggleBtn">▶️ INICIAR OPERATIVA</button>
+                <button onclick="refreshData()">🔄 REFRESH</button>
+                <button class="danger" onclick="closeAllPositions()">❌ CLOSE ALL POSITIONS</button>
+                <span id="actionMessage"
+                    style="margin-left: 15px; padding: 5px 10px; border-radius: 4px; display: none;"></span>
+            </div>
+        </header>
+
+        <!-- Grid 1: Prompt & Metrics -->
+        <div class="grid">
+            <!-- Prompt Editor Panel -->
+            <div class="config-panel">
+                <div class="panel-header">📝 PROMPT SYSTEM</div>
+
+                <!-- Model Selector -->
+                <div
+                    style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #333;">
+                    <span style="color: #888;">🤖 Modelo IA:</span>
+                    <select id="modelSelector" style="flex: 1; max-width: 300px;">
+                        <option value="openai/gpt-5.1">GPT 5.1</option>
+                        <option value="x-ai/grok-4.20">Grok 4.20</option>
+                        <option value="deepseek/deepseek-chat-v3.1">Deepseek v3.1</option>
+                    </select>
+                    <span id="currentModelLabel" style="color: #666; font-size: 0.9em;"></span>
+                </div>
+
+                <div class="config-section" style="width: 100%;">
+                    <textarea id="promptEditor"
+                        style="width: 100%; height: 200px; background: #1a1a1a; color: #e0e0e0; border: 1px solid #444; padding: 10px; font-family: monospace; resize: vertical; box-sizing: border-box;"></textarea>
+                </div>
+                <div class="config-actions" style="justify-content: space-between; margin-top: 10px;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="promptHistory" onchange="previewHistory()" style="max-width: 300px;">
+                            <option value="current">Versión Actual</option>
+                        </select>
+                        <button class="secondary" onclick="restorePrompt()">⏪ RESTAURAR</button>
+                        <button class="secondary" onclick="toggleSaveAs()"
+                            style="background: #2a2a2a; border: 1px solid #666; margin-left: 5px;">💾 GUARDAR
+                            COPIA</button>
+                        <span id="promptStatus" class="config-status"></span>
+                    </div>
+                    <div id="saveAsContainer"
+                        style="display:none; margin-top: 10px; border-top: 1px solid #333; padding-top: 10px;">
+                        <input type="text" id="newPromptName" placeholder="Nombre de versión..."
+                            style="background: #111; border: 1px solid #444; color: white; padding: 5px;">
+                        <button onclick="confirmSaveAs()" style="padding: 5px 10px; font-size: 0.9em;">✅
+                            Confirmar</button>
+                        <button onclick="toggleSaveAs()" class="danger" style="padding: 5px 10px; font-size: 0.9em;">❌
+                            Cancelar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Metrics -->
+            <div class="panel">
+                <div class="panel-header">
+                    📊 ACCOUNT METRICS
+                </div>
+                <div class="metric">
+                    <span>Total Value:</span>
+                    <span class="metric-value" id="totalValue">$5,000.00</span>
+                </div>
+                <div class="metric">
+                    <span>Available Balance:</span>
+                    <span class="metric-value" id="availableBalance">$5,000.00</span>
+                </div>
+                <div class="metric">
+                    <span>Total P&L:</span>
+                    <span class="metric-value positive" id="totalPnl">$0.00</span>
+                </div>
+                <div class="metric">
+                    <span>Total Trades:</span>
+                    <span class="metric-value" id="totalTrades">0</span>
+                </div>
+                <div class="metric">
+                    <span>Win Rate:</span>
+                    <span class="metric-value" id="winRate">0%</span>
+                </div>
+            </div>
+
+            <!-- Data Health Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    📡 DATA HEALTH
+                    <span class="refresh-indicator" id="dataHealthRefresh">Updated: --:--:--</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ASSET</th>
+                            <th>STATUS</th>
+                            <th>CONF</th>
+                            <th>MISSING</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataHealthTable">
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #666;">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Grid 2: Configuration & Risk -->
+        <div class="grid">
+            <!-- Configuration Panel -->
+            <div class="config-panel">
+                <div class="panel-header">⚙️ CONFIGURACIÓN EN VIVO</div>
+                <div class="config-grid">
+                    <div class="config-section">
+                        <label>ASSETS:</label>
+                        <div class="checkbox-group" id="assetsGroup">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                    <div class="config-section">
+                        <label>TIMEFRAME:</label>
+                        <select id="intervalSelect">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="config-section">
+                        <label>LEVERAGE:</label>
+                        <select id="leverageSelect">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="config-actions">
+                        <span class="config-status" id="configStatus"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Risk Management Panel -->
+            <div class="panel">
+                <div class="panel-header">🛡️ GESTIÓN DE RIESGO</div>
+                <div style="padding: 15px;">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; color: #666; font-size: 0.8em; margin-bottom: 10px;">NIVEL DE
+                            RIESGO</label>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="setRiskPreset('conservative')" class="risk-btn" id="btn-conservative"
+                                style="flex:1; padding: 8px; font-size: 0.8em; background: #003300;">🛡️
+                                CONSERVADOR</button>
+                            <button onclick="setRiskPreset('moderate')" class="risk-btn" id="btn-moderate"
+                                style="flex:1; padding: 8px; font-size: 0.8em; background: #333300; opacity: 0.7;">⚖️
+                                MODERADO</button>
+                            <button onclick="setRiskPreset('aggressive')" class="risk-btn" id="btn-aggressive"
+                                style="flex:1; padding: 8px; font-size: 0.8em; background: #330000; opacity: 0.7;">☠️
+                                AGRESIVO</button>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                        <div>
+                            <label style="font-size: 0.9em; display: block; margin-bottom: 5px;">Risk per Trade:
+                                <span id="val-risk-trade" style="color: #00ff00;">1.0</span>%</label>
+                            <input type="range" id="risk-trade" min="1" max="50" step="0.5" value="1.0"
+                                oninput="updateRiskVal('risk-trade')" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.9em; display: block; margin-bottom: 5px;">Max Daily Loss:
+                                <span id="val-max-loss" style="color: #00ff00;">3.0</span>%</label>
+                            <input type="range" id="max-loss" min="1" max="50" step="0.5" value="3.0"
+                                oninput="updateRiskVal('max-loss')" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.9em; display: block; margin-bottom: 5px;">Max Trades per Day:
+                                <span id="val-max-trades" style="color: #00ff00;">2</span></label>
+                            <input type="range" id="max-trades" min="1" max="10" step="1" value="2"
+                                oninput="updateRiskVal('max-trades')" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.9em; display: block; margin-bottom: 5px;">Max Position Size:
+                                <span id="val-max-pos" style="color: #00ff00;">10</span>%</label>
+                            <input type="range" id="max-pos" min="5" max="50" step="5" value="10"
+                                oninput="updateRiskVal('max-pos')" style="width: 100%;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Positions & Trade History (Tabbed) -->
+        <div class="panel" style="margin-bottom: 20px;">
+            <div class="panel-header" style="margin-bottom: 0; border-bottom: none;">
+                <div style="display: flex; gap: 0;">
+                    <button onclick="showTab('positions')" id="tab-positions" class="tab-btn active"
+                        style="padding: 10px 20px; background: #003300; border: 1px solid #00ff00; border-bottom: none; cursor: pointer;">
+                        💼 OPEN POSITIONS
+                    </button>
+                    <button onclick="showTab('history')" id="tab-history" class="tab-btn"
+                        style="padding: 10px 20px; background: #1a1a1a; border: 1px solid #333; border-bottom: none; cursor: pointer; opacity: 0.7;">
+                        📊 TRADE HISTORY
+                    </button>
+                </div>
+                <span class="refresh-indicator" id="positionsRefresh">Updated: --:--:--</span>
+            </div>
+
+            <!-- Positions Tab Content -->
+            <div id="tab-content-positions" class="tab-content" style="border-top: 1px solid #00ff00;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ASSET</th>
+                            <th>SIDE</th>
+                            <th>SIZE</th>
+                            <th>ENTRY</th>
+                            <th>CURRENT</th>
+                            <th>TP</th>
+                            <th>SL</th>
+                            <th>P&L</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="positionsTable">
+                        <tr>
+                            <td colspan="9" style="text-align: center; color: #666;">No open positions</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Trade History Tab Content -->
+            <div id="tab-content-history" class="tab-content" style="display: none; border-top: 1px solid #00ff00;">
+                <div
+                    style="padding: 10px; display: flex; justify-content: space-between; align-items: center; background: #0d0d0d; border-bottom: 1px solid #003300;">
+                    <div id="perfStats" style="display: flex; gap: 20px; font-size: 0.9em;">
+                        <span>Win Rate: <strong class="positive" id="histWinRate">--</strong></span>
+                        <span>Wins: <strong class="positive" id="histWins">--</strong></span>
+                        <span>Losses: <strong class="negative" id="histLosses">--</strong></span>
+                        <span>Avg Win: <strong class="positive" id="histAvgWin">--</strong></span>
+                        <span>Avg Loss: <strong class="negative" id="histAvgLoss">--</strong></span>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>TIME</th>
+                            <th>ASSET</th>
+                            <th>ACTION</th>
+                            <th>OUTCOME</th>
+                            <th>ENTRY</th>
+                            <th>EXIT</th>
+                            <th>P&L %</th>
+                            <th>RATIONALE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTable">
+                        <tr>
+                            <td colspan="8" style="text-align: center; color: #666;">Loading trade history...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recent Decisions & Brain (Already correct structure) -->
+        <div class="grid">
+            <div class="panel">
+                <div class="panel-header">
+                    📝 RECENT DECISIONS
+                    <span class="refresh-indicator" id="decisionsRefresh">Updated: --:--:--</span>
+                </div>
+                <div class="decision-log scrollbar" id="decisionLog">
+                    <div style="text-align: center; color: #666; padding: 20px;">
+                        Loading decisions...
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    🧠 LLM THOUGHT PROCESS
+                    <span class="refresh-indicator" id="brainRefresh">Updated: --:--:--</span>
+                </div>
+                <div id="brainLog" class="scrollbar"
+                    style="max-height: 400px; overflow-y: auto; font-size: 11px; color: #00cc00; white-space: pre-wrap; padding: 10px; background: #050505; border: 1px solid #004400;">
+                    Initializing brain connection...
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let botRunning = false;
+            let nextDecisionTime = null;
+            let countdownInterval = null;
+            let currentConfig = { assets: [], interval: '5m' };
+            let currentTab = 'positions';
+
+            // Initialize
+            document.addEventListener('DOMContentLoaded', function () {
+                loadConfig();
+                refreshData();
+                loadTradeHistory();
+                loadDataHealth();
+                startCountdown();
+                setInterval(refreshData, 5000); // Refresh every 5 seconds
+                setInterval(loadTradeHistory, 15000); // Refresh history every 15 seconds
+                setInterval(loadDataHealth, 10000); // Refresh data health every 10 seconds
+            });
+
+            // Tab switching
+            function showTab(tabName) {
+                currentTab = tabName;
+                // Update tab buttons
+                document.getElementById('tab-positions').style.background = tabName === 'positions' ? '#003300' : '#1a1a1a';
+                document.getElementById('tab-positions').style.border = tabName === 'positions' ? '1px solid #00ff00' : '1px solid #333';
+                document.getElementById('tab-positions').style.opacity = tabName === 'positions' ? '1' : '0.7';
+
+                document.getElementById('tab-history').style.background = tabName === 'history' ? '#003300' : '#1a1a1a';
+                document.getElementById('tab-history').style.border = tabName === 'history' ? '1px solid #00ff00' : '1px solid #333';
+                document.getElementById('tab-history').style.opacity = tabName === 'history' ? '1' : '0.7';
+
+                // Show/hide content
+                document.getElementById('tab-content-positions').style.display = tabName === 'positions' ? 'block' : 'none';
+                document.getElementById('tab-content-history').style.display = tabName === 'history' ? 'block' : 'none';
+
+                if (tabName === 'history') {
+                    loadTradeHistory();
+                }
+            }
+
+            // Load trade history
+            async function loadTradeHistory() {
+                try {
+                    const res = await fetch('/api/trade-history?limit=50');
+                    const data = await res.json();
+
+                    // Update performance stats
+                    if (data.performance) {
+                        const perf = data.performance;
+                        document.getElementById('histWinRate').textContent = perf.win_rate + '%';
+                        document.getElementById('histWins').textContent = perf.wins;
+                        document.getElementById('histLosses').textContent = perf.losses;
+                        document.getElementById('histAvgWin').textContent = perf.avg_win + '%';
+                        document.getElementById('histAvgLoss').textContent = perf.avg_loss + '%';
+                    }
+
+                    // Update history table
+                    const tbody = document.getElementById('historyTable');
+                    if (!data.trades || data.trades.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #666;">No trades recorded yet</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = data.trades.map(trade => {
+                        const time = trade.timestamp ? new Date(trade.timestamp).toLocaleString() : '--';
+                        const actionClass = trade.action === 'buy' ? 'positive' : (trade.action === 'sell' ? 'negative' : 'neutral');
+                        const outcomeClass = trade.outcome === 'tp_hit' ? 'positive' : (trade.outcome === 'sl_hit' ? 'negative' : 'neutral');
+                        const outcomeText = {
+                            'tp_hit': '✅ TP Hit',
+                            'sl_hit': '❌ SL Hit',
+                            'manual_close': '🔄 Manual',
+                            'close': '📊 Closed'
+                        }[trade.outcome] || trade.outcome || '--';
+                        const pnlClass = (trade.pnl_pct || 0) >= 0 ? 'positive' : 'negative';
+
+                        return `
+                            <tr>
+                                <td style="font-size: 0.85em;">${time}</td>
+                                <td><strong>${trade.asset || '--'}</strong></td>
+                                <td class="${actionClass}">${(trade.action || '--').toUpperCase()}</td>
+                                <td class="${outcomeClass}">${outcomeText}</td>
+                                <td>${trade.entry_price ? '$' + trade.entry_price.toFixed(2) : '--'}</td>
+                                <td>${trade.exit_price ? '$' + trade.exit_price.toFixed(2) : '--'}</td>
+                                <td class="${pnlClass}">${trade.pnl_pct != null ? trade.pnl_pct.toFixed(2) + '%' : '--'}</td>
+                                <td style="font-size: 0.8em; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${trade.rationale || '--'}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                } catch (error) {
+                    console.error('Error loading trade history:', error);
+                }
+            }
+
+            // Load data health status
+            async function loadDataHealth() {
+                try {
+                    const res = await fetch('/api/data-health');
+                    const data = await res.json();
+
+                    const tbody = document.getElementById('dataHealthTable');
+                    const assets = Object.keys(data);
+
+                    if (assets.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666;">No data yet</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = assets.map(asset => {
+                        const info = data[asset];
+                        const statusIcon = info.status === 'complete' ? '✅' : (info.status === 'degraded' ? '⚠️' : '❌');
+                        const statusClass = info.status === 'complete' ? 'positive' : (info.status === 'degraded' ? 'neutral' : 'negative');
+                        const confPct = Math.round(info.confidence * 100);
+                        const confClass = confPct >= 90 ? 'positive' : (confPct >= 50 ? 'neutral' : 'negative');
+                        const missing = info.missing && info.missing.length > 0 ? info.missing.join(', ') : '--';
+
+                        return `
+                            <tr>
+                                <td><strong>${asset}</strong></td>
+                                <td class="${statusClass}">${statusIcon} ${info.status.toUpperCase()}</td>
+                                <td class="${confClass}">${confPct}%</td>
+                                <td style="font-size: 0.85em; max-width: 150px; overflow: hidden; text-overflow: ellipsis;">${missing}</td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    document.getElementById('dataHealthRefresh').textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+                } catch (error) {
+                    console.error('Error loading data health:', error);
+                }
+            }
+
+            async function loadConfig() {
+                try {
+                    const res = await fetch('/api/config');
+                    const config = await res.json();
+                    currentConfig = config;
+                    renderConfigUI(config);
+                    // Update header display
+                    document.getElementById('assets').textContent = config.assets.join(', ');
+                    document.getElementById('interval').textContent = config.interval;
+                    document.getElementById('leverage').textContent = (config.leverage || 20) + 'x';
+
+                    // Load Risk Config
+                    if (config.risk_config) {
+                        const rc = config.risk_config;
+                        document.getElementById('risk-trade').value = rc.risk_per_trade;
+                        document.getElementById('max-loss').value = rc.max_daily_loss;
+                        document.getElementById('max-trades').value = rc.max_simultaneous_trades;
+                        document.getElementById('max-pos').value = rc.max_position_size_pct;
+
+                        // Update display values
+                        document.getElementById('val-risk-trade').textContent = rc.risk_per_trade;
+                        document.getElementById('val-max-loss').textContent = rc.max_daily_loss;
+                        document.getElementById('val-max-trades').textContent = rc.max_simultaneous_trades;
+                        document.getElementById('val-max-pos').textContent = rc.max_position_size_pct;
+
+                        if (rc.level && rc.level !== 'custom') {
+                            ['conservative', 'moderate', 'aggressive'].forEach(l => {
+                                const btn = document.getElementById('btn-' + l);
+                                if (btn) {
+                                    if (l === rc.level) {
+                                        btn.style.opacity = '1';
+                                        btn.style.border = '2px solid white';
+                                    } else {
+                                        btn.style.opacity = '0.5';
+                                        btn.style.border = '1px solid #333';
+                                    }
+                                }
+                            });
+                        }
+                    }
+
+                    // Load Model Config
+                    if (config.llm_model) {
+                        document.getElementById('modelSelector').value = config.llm_model;
+                        document.getElementById('currentModelLabel').textContent = '(Actual: ' + config.llm_model.split('/').pop() + ')';
+                    }
+                } catch (error) {
+                    console.error('Error loading config:', error);
+                }
+            }
+
+            function renderConfigUI(config) {
+                // Render asset checkboxes
+                const assetsGroup = document.getElementById('assetsGroup');
+                assetsGroup.innerHTML = config.available_assets.map(asset => {
+                    const checked = config.assets.includes(asset);
+                    return `
+                    <label class="asset-checkbox ${checked ? 'selected' : ''}">
+                        <input type="checkbox" value="${asset}" ${checked ? 'checked' : ''} 
+                               onchange="toggleAssetSelection(this)">
+                        ${asset}
+                    </label>
+                `;
+                }).join('');
+
+                // Render interval dropdown
+                const intervalSelect = document.getElementById('intervalSelect');
+                intervalSelect.innerHTML = config.available_intervals.map(interval => {
+                    const selected = config.interval === interval;
+                    const labels = { '1m': '1 min', '5m': '5 min', '15m': '15 min', '30m': '30 min', '1h': '1 hora', '4h': '4 horas', '1d': '1 día' };
+                    return `<option value="${interval}" ${selected ? 'selected' : ''}>${labels[interval] || interval}</option>`;
+                }).join('');
+
+                // Populate leverage select
+                const levSelect = document.getElementById('leverageSelect');
+                if (config.available_leverages) {
+                    levSelect.innerHTML = config.available_leverages.map(lev =>
+                        `<option value="${lev}" ${lev === (config.leverage || 20) ? 'selected' : ''}>${lev}x</option>`
+                    ).join('');
+                }
+            }
+
+            function toggleAssetSelection(checkbox) {
+                const label = checkbox.parentElement;
+                if (checkbox.checked) {
+                    label.classList.add('selected');
+                } else {
+                    label.classList.remove('selected');
+                }
+            }
+
+            async function applyConfig() {
+                const statusEl = document.getElementById('configStatus');
+                statusEl.textContent = 'Aplicando...';
+                statusEl.className = 'config-status';
+
+                // Get selected assets
+                const checkboxes = document.querySelectorAll('#assetsGroup input[type="checkbox"]:checked');
+                const selectedAssets = Array.from(checkboxes).map(cb => cb.value);
+
+                if (selectedAssets.length === 0) {
+                    statusEl.textContent = '❌ Selecciona al menos 1 asset';
+                    statusEl.className = 'config-status error';
+                    return;
+                }
+
+                // Get selected interval
+                const selectedInterval = document.getElementById('intervalSelect').value;
+                // Get selected leverage
+                const selectedLeverage = document.getElementById('leverageSelect').value;
+                // Get selected model
+                const selectedModel = document.getElementById('modelSelector').value;
+
+                try {
+                    const res = await fetch('/api/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            assets: selectedAssets,
+                            interval: selectedInterval,
+                            leverage: parseInt(selectedLeverage),
+                            llm_model: selectedModel
+                        })
+                    });
+                    const result = await res.json();
+
+                    if (result.status === 'updated') {
+                        statusEl.textContent = '✅ Configuración aplicada';
+                        statusEl.className = 'config-status success';
+                        // Update header display
+                        document.getElementById('assets').textContent = selectedAssets.join(', ');
+                        document.getElementById('interval').textContent = selectedInterval;
+                        document.getElementById('leverage').textContent = (parseInt(selectedLeverage) || 20) + 'x';
+                        document.getElementById('currentModelLabel').textContent = '(Actual: ' + selectedModel.split('/').pop() + ')';
+                        currentConfig.assets = selectedAssets;
+                        currentConfig.interval = selectedInterval;
+                        currentConfig.leverage = parseInt(selectedLeverage);
+                        currentConfig.llm_model = selectedModel;
+                    } else {
+                        statusEl.textContent = '⚠️ Sin cambios';
+                        statusEl.className = 'config-status';
+                    }
+
+                    setTimeout(() => { statusEl.textContent = ''; }, 3000);
+                } catch (error) {
+                    statusEl.textContent = '❌ Error: ' + error.message;
+                    statusEl.className = 'config-status error';
+                }
+            }
+
+            async function toggleBot() {
+                console.log('toggleBot called, current state:', botRunning);
+                botRunning = !botRunning;
+                const btn = document.getElementById('toggleBtn');
+                const status = document.getElementById('botStatus');
+                const indicator = document.getElementById('statusIndicator');
+
+                try {
+                    if (botRunning) {
+                        btn.textContent = '⏸️ PAUSAR OPERATIVA';
+                        status.textContent = 'OPERANDO';
+                        indicator.className = 'status-indicator running';
+                        const resp = await fetch('/api/bot/start', { method: 'POST' });
+                        console.log('Bot start response:', await resp.text());
+                    } else {
+                        btn.textContent = '▶️ INICIAR OPERATIVA';
+                        status.textContent = 'PAUSADO';
+                        indicator.className = 'status-indicator stopped';
+                        const resp = await fetch('/api/bot/stop', { method: 'POST' });
+                        console.log('Bot stop response:', await resp.text());
+                    }
+                } catch (error) {
+                    console.error('toggleBot error:', error);
+                    alert('Error: ' + error.message);
+                }
+            }
+
+            function startCountdown() {
+                if (countdownInterval) clearInterval(countdownInterval);
+
+                countdownInterval = setInterval(() => {
+                    if (!nextDecisionTime) return;
+
+                    const now = new Date();
+                    const diff = nextDecisionTime - now;
+
+                    if (diff <= 0) {
+                        document.getElementById('countdown').textContent = '00:00';
+                        refreshData();
+                        return;
+                    }
+
+                    const minutes = Math.floor(diff / 60000);
+                    const seconds = Math.floor((diff % 60000) / 1000);
+                    document.getElementById('countdown').textContent =
+                        `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }, 1000);
+            }
+
+            async function refreshData() {
+                try {
+                    // Fetch account state
+                    const accountRes = await fetch('/api/account');
+                    const account = await accountRes.json();
+                    updateAccountMetrics(account);
+
+                    // Fetch positions
+                    const positionsRes = await fetch('/api/positions');
+                    const positions = await positionsRes.json();
+                    updatePositions(positions);
+
+                    // Fetch recent decisions
+                    const decisionsRes = await fetch('/diary?limit=10');
+                    const decisions = await decisionsRes.json();
+                    updateDecisions(decisions.entries || []);
+
+                    // Fetch prompt logs (Brain)
+                    const brainRes = await fetch('/api/logs/prompts');
+                    const brainData = await brainRes.text();
+                    const brainDiv = document.getElementById('brainLog');
+                    brainDiv.textContent = brainData;
+                    brainDiv.scrollTop = brainDiv.scrollHeight;
+
+                    // Fetch bot status for next_run
+                    const statusRes = await fetch('/api/bot/status');
+                    const status = await statusRes.json();
+                    if (status.next_run) {
+                        nextDecisionTime = new Date(status.next_run);
+                    } else {
+                        // Fallback if not set yet
+                        const interval = 15 * 60 * 1000;
+                        nextDecisionTime = new Date(Date.now() + interval);
+                    }
+
+                    const now = new Date().toLocaleTimeString();
+                    // document.getElementById('lastUpdate').textContent = now; // Removed as element doesn't exist
+                    document.getElementById('positionsRefresh').textContent = `Updated: ${now}`;
+                    document.getElementById('decisionsRefresh').textContent = `Updated: ${now}`;
+                    document.getElementById('brainRefresh').textContent = `Updated: ${now}`;
+                } catch (error) {
+                    console.error('Error refreshing data:', error);
+                }
+            }
+
+            function updateAccountMetrics(account) {
+                document.getElementById('totalValue').textContent = `$${account.total_value?.toFixed(2) || '0.00'}`;
+                document.getElementById('availableBalance').textContent = `$${account.balance?.toFixed(2) || '0.00'}`;
+
+                const pnl = (account.total_value || 0) - 5000;
+                const pnlElement = document.getElementById('totalPnl');
+                pnlElement.textContent = `$${pnl.toFixed(2)}`;
+                pnlElement.className = `metric-value ${pnl >= 0 ? 'positive' : 'negative'}`;
+            }
+
+            function updatePositions(positions) {
+                const tbody = document.getElementById('positionsTable');
+
+                if (!positions || positions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #666;">No open positions</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = positions.map(pos => {
+                    const pnl = pos.pnl || 0;
+                    const pnlClass = pnl >= 0 ? 'positive' : 'negative';
+                    const side = parseFloat(pos.szi) > 0 ? 'LONG' : 'SHORT';
+                    const sideClass = side === 'LONG' ? 'positive' : 'negative';
+
+                    const tp = pos.tp ? `$${parseFloat(pos.tp).toFixed(2)}` : '--';
+                    const sl = pos.sl ? `$${parseFloat(pos.sl).toFixed(2)}` : '--';
+
+                    return `
+                    <tr>
+                        <td>${pos.coin}</td>
+                        <td class="${sideClass}">${side}</td>
+                        <td>${Math.abs(parseFloat(pos.szi)).toFixed(4)}</td>
+                        <td>$${parseFloat(pos.entryPx).toFixed(2)}</td>
+                        <td>$${parseFloat(pos.current_price || 0).toFixed(2)}</td>
+                        <td style="color: #ffff00">${tp}</td>
+                        <td style="color: #ff6666">${sl}</td>
+                        <td class="${pnlClass}">$${pnl.toFixed(2)}</td>
+                        <td>
+                            <div class="position-actions">
+                                <button onclick="takeProfit('${pos.coin}')">💰 TP</button>
+                                <button class="danger" onclick="closePosition('${pos.coin}')">❌ CLOSE</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                }).join('');
+            }
+
+            function updateDecisions(decisions) {
+                const log = document.getElementById('decisionLog');
+
+                if (!decisions || decisions.length === 0) {
+                    log.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No decisions yet</div>';
+                    return;
+                }
+
+                log.innerHTML = decisions.reverse().map(decision => {
+                    const actionClass = `action-${decision.action}`;
+                    const time = new Date(decision.timestamp).toLocaleTimeString();
+
+                    return `
+                    <div class="decision-item">
+                        <div class="decision-header">
+                            <span><strong>${decision.asset}</strong> - <span class="${actionClass}">${decision.action.toUpperCase()}</span></span>
+                            <span style="color: #666;">${time}</span>
+                        </div>
+                        <div style="color: #999; font-size: 0.9em;">
+                            ${decision.rationale || 'No rationale provided'}
+                        </div>
+                        ${decision.allocation_usd ? `<div style="color: #00ff00; margin-top: 5px;">Amount: $${decision.allocation_usd}</div>` : ''}
+                    </div>
+                `;
+                }).join('');
+            }
+
+            async function takeProfit(asset) {
+                console.log('takeProfit called for:', asset);
+
+                try {
+                    await fetch(`/api/position/${asset}/close`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'take_profit' })
+                    });
+                    alert(`Take profit order placed for ${asset}`);
+                    refreshData();
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            }
+
+            async function closePosition(asset) {
+                console.log('closePosition called for:', asset);
+
+                try {
+                    console.log('Sending close request for:', asset);
+                    const response = await fetch(`/api/position/${asset}/close`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'market' })
+                    });
+                    const result = await response.json();
+                    console.log('Close response:', result);
+                    if (result.error) {
+                        showMessage(`❌ Error: ${result.error}`, 'error');
+                    } else {
+                        showMessage(`✅ Position closed for ${asset}`, 'success');
+                    }
+                    refreshData();
+                } catch (error) {
+                    console.error('closePosition error:', error);
+                    showMessage(`❌ Error: ${error.message}`, 'error');
+                }
+            }
+
+            function showMessage(text, type = 'info') {
+                const msgEl = document.getElementById('actionMessage');
+                msgEl.textContent = text;
+                msgEl.style.display = 'inline-block';
+                if (type === 'success') {
+                    msgEl.style.background = '#00ff0033';
+                    msgEl.style.color = '#00ff00';
+                } else if (type === 'error') {
+                    msgEl.style.background = '#ff000033';
+                    msgEl.style.color = '#ff6666';
+                } else {
+                    msgEl.style.background = '#ffff0033';
+                    msgEl.style.color = '#ffff00';
+                }
+                setTimeout(() => { msgEl.style.display = 'none'; }, 5000);
+            }
+
+            async function closeAllPositions() {
+                console.log('closeAllPositions called');
+                showMessage('Cerrando posiciones...', 'info');
+                try {
+                    console.log('Sending close-all request');
+                    const response = await fetch('/api/positions/close-all', { method: 'POST' });
+                    console.log('Response status:', response.status);
+                    const result = await response.json();
+                    console.log('Close-all result:', result);
+
+                    if (result.status === 'no_positions') {
+                        showMessage('⚠️ No hay posiciones abiertas', 'info');
+                    } else if (result.status === 'success') {
+                        showMessage(`✅ ${result.closed_count} posición(es) cerrada(s)`, 'success');
+                    } else if (result.error) {
+                        showMessage(`❌ Error: ${result.error}`, 'error');
+                    } else {
+                        showMessage('Operación completada', 'success');
+                    }
+                    refreshData();
+                } catch (error) {
+                    console.error('closeAllPositions error:', error);
+                    showMessage(`❌ Error de conexión: ${error.message}`, 'error');
+                }
+            }
+
+            // --- Prompt Editor Logic ---
+            let promptHistoryData = [];
+
+            function toggleSaveAs() {
+                const el = document.getElementById('saveAsContainer');
+                el.style.display = el.style.display === 'none' ? 'block' : 'none';
+                if (el.style.display === 'block') document.getElementById('newPromptName').focus();
+            }
+
+            async function confirmSaveAs() {
+                const name = document.getElementById('newPromptName').value;
+                if (!name) {
+                    showMessage('⚠️ Escribe un nombre', 'info');
+                    return;
+                }
+
+                const content = document.getElementById('promptEditor').value;
+                try {
+                    const res = await fetch('/api/prompts/save_as', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content, name })
+                    });
+                    if (res.ok) {
+                        showMessage('✅ Prompt guardado como: ' + name, 'success');
+                        toggleSaveAs(); // Hide
+                        document.getElementById('newPromptName').value = ''; // Clear
+                        loadPrompts();
+                    } else {
+                        showMessage('❌ Error guardando', 'error');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    showMessage('❌ Error de conexión', 'error');
+                }
+            }
+
+            async function loadPrompts() {
+                try {
+                    const res = await fetch('/api/prompts');
+                    const data = await res.json();
+
+                    document.getElementById('promptEditor').value = data.current;
+                    promptHistoryData = data.history;
+
+                    const historySelect = document.getElementById('promptHistory');
+                    historySelect.innerHTML = '<option value="current">Versión Actual (Editando)</option>';
+
+                    data.history.forEach(item => {
+                        const date = new Date(item.timestamp).toLocaleString();
+                        const shortId = item.id.substring(0, 8);
+                        const label = item.name ? `🏷️ ${item.name} (${date})` : `${date} - ${shortId}`;
+                        historySelect.innerHTML += `<option value="${item.id}">${label}</option>`;
+                    });
+                } catch (e) {
+                    console.error("Error loading prompts", e);
+                }
+            }
+
+            async function savePrompt() {
+                const content = document.getElementById('promptEditor').value;
+                const status = document.getElementById('promptStatus');
+                try {
+                    status.textContent = 'Guardando...';
+                    const res = await fetch('/api/prompts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content })
+                    });
+                    const result = await res.json();
+                    if (result.status === 'updated') {
+                        showMessage('✅ Prompt actualizado y aplicado', 'success');
+                        loadPrompts(); // Reload to update history
+                    } else {
+                        showMessage('⚠️ Sin cambios', 'info');
+                    }
+                    status.textContent = '';
+                } catch (e) {
+                    showMessage(`❌ Error: ${e.message}`, 'error');
+                }
+            }
+
+            function previewHistory() {
+                const id = document.getElementById('promptHistory').value;
+                if (id === 'current') {
+                    // We don't reload immediately to avoid losing edits if accidentally switched?
+                    // Actually better to reload current from memory or server if they want to revert.
+                    // For now, let's just fetch latest.
+                    loadPrompts();
+                    return;
+                }
+                const item = promptHistoryData.find(h => h.id === id);
+                if (item) {
+                    document.getElementById('promptEditor').value = item.content;
+                    showMessage('ℹ️ Visualizando versión histórica (No aplicada)', 'info');
+                }
+            }
+
+            async function restorePrompt() {
+                const id = document.getElementById('promptHistory').value;
+                if (id === 'current') return;
+
+                // Replaced alert/confirm logic
+                showMessage('Restaurando prompt...', 'info');
+
+                try {
+                    const res = await fetch('/api/prompts/restore', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id })
+                    });
+                    const result = await res.json();
+                    if (result.status === 'restored') {
+                        showMessage('✅ Prompt restaurado', 'success');
+                        loadPrompts();
+                    } else {
+                        showMessage(`❌ Error: ${result.error}`, 'error');
+                    }
+                } catch (e) {
+                    showMessage(`❌ Error: ${e.message}`, 'error');
+                }
+            }
+
+            // Initialize
+            loadConfig();
+            loadPrompts();
+            refreshData();
+            setInterval(refreshData, 5000); // 5s refresh
+            startCountdown();
+
+            // --- Risk Management JS ---
+            function updateRiskVal(id) {
+                const val = document.getElementById(id).value;
+                document.getElementById('val-' + id).textContent = val;
+                checkCustomRisk();
+            }
+
+            function checkCustomRisk() {
+                // If values don't match strict presets, highlight custom or update active button
+                // Simplify: just remove active class from all buttons when moved manually
+                ['conservative', 'moderate', 'aggressive'].forEach(level => {
+                    const btn = document.getElementById('btn-' + level);
+                    btn.style.opacity = '0.5';
+                    btn.style.border = '1px solid #333';
+                });
+            }
+
+            function setRiskPreset(level) {
+                const presets = {
+                    'conservative': { risk: 1.0, loss: 3.0, trades: 2, pos: 10, color: '#00ff00' },
+                    'moderate': { risk: 3.0, loss: 6.0, trades: 4, pos: 20, color: '#ffff00' },
+                    'aggressive': { risk: 5.0, loss: 10.0, trades: 6, pos: 50, color: '#ff0000' }
+                };
+                const p = presets[level];
+
+                document.getElementById('risk-trade').value = p.risk;
+                document.getElementById('max-loss').value = p.loss;
+                document.getElementById('max-trades').value = p.trades;
+                document.getElementById('max-pos').value = p.pos;
+
+                updateRiskVal('risk-trade');
+                updateRiskVal('max-loss');
+                updateRiskVal('max-trades');
+                updateRiskVal('max-pos');
+
+                // Update buttons visually
+                ['conservative', 'moderate', 'aggressive'].forEach(l => {
+                    const btn = document.getElementById('btn-' + l);
+                    if (l === level) {
+                        btn.style.opacity = '1';
+                        btn.style.border = '2px solid white';
+                    } else {
+                        btn.style.opacity = '0.5';
+                        btn.style.border = '1px solid #333';
+                    }
+                });
+            }
+
+            async function applyGlobalChanges() {
+                const statusEl = document.getElementById('actionMessage');
+                statusEl.style.display = 'inline-block';
+                statusEl.textContent = 'Aplicando Cambios... ⏳';
+                statusEl.style.color = '#ffff00';
+
+                try {
+                    // 1. Save Prompt
+                    const promptContent = document.getElementById('promptEditor').value;
+                    const promptRes = await fetch('/api/prompts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: promptContent })
+                    });
+
+                    // 2. Gather Config (Assets, Interval, Leverage)
+                    const checkboxes = document.querySelectorAll('#assetsGroup input[type="checkbox"]:checked');
+                    const selectedAssets = Array.from(checkboxes).map(cb => cb.value);
+                    const interval = document.getElementById('intervalSelect').value;
+                    const leverage = document.getElementById('leverageSelect').value;
+
+                    // 3. Gather Risk Config
+                    const riskConfig = {
+                        level: 'custom', // We could track preset, but 'custom' is safe as we send values
+                        risk_per_trade: parseFloat(document.getElementById('risk-trade').value),
+                        max_daily_loss: parseFloat(document.getElementById('max-loss').value),
+                        max_simultaneous_trades: parseInt(document.getElementById('max-trades').value),
+                        max_position_size_pct: parseFloat(document.getElementById('max-pos').value)
+                    };
+
+                    // Check if any preset button is active to set 'level' correctly (cosmetic but nice)
+                    ['conservative', 'moderate', 'aggressive'].forEach(l => {
+                        const btn = document.getElementById('btn-' + l);
+                        if (btn.style.opacity === '1') riskConfig.level = l;
+                    });
+
+                    const configPayload = {
+                        assets: selectedAssets,
+                        interval: interval,
+                        leverage: leverage,
+                        risk_config: riskConfig
+                    };
+
+                    const configRes = await fetch('/api/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(configPayload)
+                    });
+
+                    if (promptRes.ok && configRes.ok) {
+                        showMessage('✅ TODOS LOS CAMBIOS APLICADOS', 'success');
+                        loadConfig(); // Reload to sync state
+                    } else {
+                        showMessage('❌ Error aplicando algunos cambios', 'error');
+                    }
+
+                } catch (e) {
+                    console.error(e);
+                    showMessage('❌ Error de conexión', 'error');
+                }
+            }
+        </script>
+</body>
+
+</html>

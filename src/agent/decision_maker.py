@@ -21,68 +21,69 @@ class TradingAgent:
         self.taapi = TAAPIClient()
         # Fast/cheap sanitizer model to normalize outputs on parse failures
         self.sanitize_model = CONFIG.get("sanitize_model") or "openai/gpt-5"
+        
+        # Default system prompt template (will be overridden by PromptManager)
+        self.system_prompt_template = None
 
-    def decide_trade(self, assets, context):
-        """Decide for multiple assets in one call.
+    def set_system_prompt(self, template: str):
+        """Update the system prompt template."""
+        self.system_prompt_template = template
 
+    def get_decisions(self, context, assets, config=None, account_data=None):
+        """
+        Get trade decisions for the current context.
+        
         Args:
-            assets: Iterable of asset tickers to score.
-            context: Structured market/account state forwarded to the LLM.
+            context (str/dict): The context payload describing market and account state.
+            assets (list[str]): List of assets to trade.
+            config (dict, optional): Runtime configuration for prompt variable injection.
+            account_data (dict, optional): Account data for calculating limits (e.g. max pos size USD).
 
         Returns:
             List of trade decision payloads, one per asset.
         """
-        return self._decide(context, assets=assets)
+        return self._decide(context, assets, config, account_data)
 
-    def _decide(self, context, assets):
+    def _decide(self, context, assets, config=None, account_data=None):
         """Dispatch decision request to the LLM and enforce output contract."""
-        system_prompt = (
-            "You are a rigorous QUANTITATIVE TRADER and interdisciplinary MATHEMATICIAN-ENGINEER optimizing risk-adjusted returns for perpetual futures under real execution, margin, and funding constraints.\n"
-            "You will receive market + account context for SEVERAL assets, including:\n"
-            f"- assets = {json.dumps(assets)}\n"
-            "- per-asset intraday (5m) and higher-timeframe (4h) metrics\n"
-            "- Active Trades with Exit Plans\n"
-            "- Recent Trading History\n\n"
-            "Always use the 'current time' provided in the user message to evaluate any time-based conditions, such as cooldown expirations or timed exit plans.\n\n"
-            "Your goal: make decisive, first-principles decisions per asset that minimize churn while capturing edge.\n\n"
-            "Aggressively pursue setups where calculated risk is outweighed by expected edge; size positions so downside is controlled while upside remains meaningful.\n\n"
-            "Core policy (low-churn, position-aware)\n"
-            "1) Respect prior plans: If an active trade has an exit_plan with explicit invalidation (e.g., “close if 4h close above EMA50”), DO NOT close or flip early unless that invalidation (or a stronger one) has occurred.\n"
-            "2) Hysteresis: Require stronger evidence to CHANGE a decision than to keep it. Only flip direction if BOTH:\n"
-            "   a) Higher-timeframe structure supports the new direction (e.g., 4h EMA20 vs EMA50 and/or MACD regime), AND\n"
-            "   b) Intraday structure confirms with a decisive break beyond ~0.5×ATR (recent) and momentum alignment (MACD or RSI slope).\n"
-            "   Otherwise, prefer HOLD or adjust TP/SL.\n"
-            "3) Cooldown: After opening, adding, reducing, or flipping, impose a self-cooldown of at least 3 bars of the decision timeframe (e.g., 3×5m = 15m) before another direction change, unless a hard invalidation occurs. Encode this in exit_plan (e.g., “cooldown_bars:3 until 2025-10-19T15:55Z”). You must honor your own cooldowns on future cycles.\n"
-            "4) Funding is a tilt, not a trigger: Do NOT open/close/flip solely due to funding unless expected funding over your intended holding horizon meaningfully exceeds expected edge (e.g., > ~0.25×ATR). Consider that funding accrues discretely and slowly relative to 5m bars.\n"
-            "5) Overbought/oversold ≠ reversal by itself: Treat RSI extremes as risk-of-pullback. You need structure + momentum confirmation to bet against trend. Prefer tightening stops or taking partial profits over instant flips.\n"
-            "6) Prefer adjustments over exits: If the thesis weakens but is not invalidated, first consider: tighten stop (e.g., to a recent swing or ATR multiple), trail TP, or reduce size. Flip only on hard invalidation + fresh confluence.\n\n"
-            "Decision discipline (per asset)\n"
-            "- Choose one: buy / sell / hold.\n"
-            "- Proactively harvest profits when price action presents a clear, high-quality opportunity that aligns with your thesis.\n"
-            "- You control allocation_usd.\n"
-            "- TP/SL sanity:\n"
-            "  • BUY: tp_price > current_price, sl_price < current_price\n"
-            "  • SELL: tp_price < current_price, sl_price > current_price\n"
-            "  If sensible TP/SL cannot be set, use null and explain the logic.\n"
-            "- exit_plan must include at least ONE explicit invalidation trigger and may include cooldown guidance you will follow later.\n\n"
-            "Leverage policy (perpetual futures)\n"
-            "- YOU CAN USE LEVERAGE, ATLEAST 3X LEVERAGE TO GET BETTER RETURN, KEEP IT WITHIN 10X IN TOTAL\n"
-            "- In high volatility (elevated ATR) or during funding spikes, reduce or avoid leverage.\n"
-            "- Treat allocation_usd as notional exposure; keep it consistent with safe leverage and available margin.\n\n"
-            "Tool usage\n"
-            "- Aggressively leverage fetch_taapi_indicator whenever an additional datapoint could sharpen your thesis; keep parameters minimal (indicator, symbol like \"BTC/USDT\", interval \"5m\"/\"4h\", optional period).\n"
-            "- Incorporate tool findings into your reasoning, but NEVER paste raw tool responses into the final JSON—summarize the insight instead.\n"
-            "- Use tools to upgrade your analysis; lack of confidence is a cue to query them before deciding."
-            "Reasoning recipe (first principles)\n"
-            "- Structure (trend, EMAs slope/cross, HH/HL vs LH/LL), Momentum (MACD regime, RSI slope), Liquidity/volatility (ATR, volume), Positioning tilt (funding, OI).\n"
-            "- Favor alignment across 4h and 5m. Counter-trend scalps require stronger intraday confirmation and tighter risk.\n\n"
-            "Output contract\n"
-            "- Output a STRICT JSON object with exactly two properties in this order:\n"
-            "  • reasoning: long-form string capturing detailed, step-by-step analysis that means you can acknowledge existing information as clarity, or acknowledge that you need more information to make a decision (be verbose).\n"
-            "  • trade_decisions: array ordered to match the provided assets list.\n"
-            "- Each item inside trade_decisions must contain the keys {asset, action, allocation_usd, tp_price, sl_price, exit_plan, rationale}.\n"
-            "- Do not emit Markdown or any extra properties.\n"
-        )
+        # Use dynamic system prompt if available, otherwise fallback (though should be set)
+        if self.system_prompt_template:
+            system_prompt = self.system_prompt_template.replace("{{ASSETS}}", json.dumps(assets))
+            
+            # Inject dynamic variables if config provided
+            if config:
+                # Basic Config
+                system_prompt = system_prompt.replace("{{LEVERAGE}}", str(config.get("leverage", 20)))
+                system_prompt = system_prompt.replace("{{TIMEFRAME}}", str(config.get("interval", "5m")))
+                
+                # Risk Config
+                rc = config.get("risk_config", {})
+                if rc:
+                    system_prompt = system_prompt.replace("{{RISK_PER_TRADE}}", str(rc.get("risk_per_trade", 1.0)))
+                    system_prompt = system_prompt.replace("{{MAX_DAILY_LOSS}}", str(rc.get("max_daily_loss", 3.0)))
+                    system_prompt = system_prompt.replace("{{MAX_TRADES_PER_DAY}}", str(rc.get("max_simultaneous_trades", 2)))
+                    
+                    # Calculate Max Position Size in USD
+                    max_pos_pct = rc.get("max_position_size_pct", 10.0)
+                    if account_data and "margin_balance" in account_data:
+                        try:
+                            equity = float(account_data["margin_balance"])
+                            max_pos_usd = round(equity * (max_pos_pct / 100.0), 2)
+                            system_prompt = system_prompt.replace("{{MAX_POSITION_SIZE}}", str(max_pos_usd))
+                        except (ValueError, TypeError):
+                            system_prompt = system_prompt.replace("{{MAX_POSITION_SIZE}}", f"{max_pos_pct}% of equity")
+                    else:
+                        system_prompt = system_prompt.replace("{{MAX_POSITION_SIZE}}", f"{max_pos_pct}% of equity")
+                        
+        else:
+            # Fallback to a minimal safe prompt if not set (should not happen with PromptManager)
+            logging.warning("System prompt template not set! Using minimal fallback.")
+            system_prompt = (
+                f"QUANTITATIVE TRADER optimizing perpetual futures returns.\n"
+                f"Assets: {json.dumps(assets)}\n"
+                "Output JSON: {reasoning, trade_decisions}."
+            )
+
         user_prompt = context
         messages = [
             {"role": "system", "content": system_prompt},
@@ -242,7 +243,7 @@ class TradingAgent:
             }
 
         for _ in range(6):
-            data = {"model": self.model, "messages": messages}
+            data = {"model": self.model, "messages": messages, "max_tokens": 4000}  # Limit max_tokens to reduce cost
             if allow_structured:
                 data["response_format"] = {
                     "type": "json_schema",
@@ -293,6 +294,12 @@ class TradingAgent:
             choice = resp_json["choices"][0]
             message = choice["message"]
             messages.append(message)
+            
+            # Log reasoning/thinking if present (from OpenRouter extended thinking)
+            reasoning_content = message.get("reasoning_content") or message.get("reasoning") or ""
+            if reasoning_content:
+                with open("prompts.log", "a", encoding="utf-8") as f:
+                    f.write(f"\n\n=== LLM REASONING {datetime.now()} ===\n{reasoning_content}\n")
 
             tool_calls = message.get("tool_calls") or []
             if allow_tools and tool_calls:
@@ -334,6 +341,9 @@ class TradingAgent:
                     parsed = message.get("parsed")
                 else:
                     content = message.get("content") or "{}"
+                    # Log raw LLM response for debugging/monitoring
+                    with open("prompts.log", "a", encoding="utf-8") as f:
+                        f.write(f"\n\n=== LLM RESPONSE {datetime.now()} ===\n{content}\n")
                     parsed = json.loads(content)
 
                 if not isinstance(parsed, dict):
